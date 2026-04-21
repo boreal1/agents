@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "terraform": {
+      "type": "local",
+      "command": [
+        "docker",
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "TFE_TOKEN",
+        "hashicorp/terraform-mcp-server:latest"
+      ],
+      "environment": {
+        "TFE_TOKEN": "your-terraform-api-token-here"
+      },
+      "enabled": true
+    }
+  }
+}
