@@ -1,0 +1,161 @@
+{
+  "skill_name": "k8s-platform-engineer",
+  "evals": [
+    {
+      "id": 1,
+      "name": "helm-chart-from-scratch",
+      "prompt": "I've got a Go HTTP API called 'orders-api' that listens on port 8080 and exposes /healthz and /metrics. We're deploying it to our AKS cluster. Can you write me a Helm chart for it? We want it ready for production with reasonable defaults. The image is myregistry.azurecr.io/orders-api.",
+      "expected_output": "A complete Helm chart directory (Chart.yaml, values.yaml, templates/) with deployment, service, hpa, pdb, serviceaccount, _helpers.tpl. Resource limits, health probes, securityContext with runAsNonRoot, recommended labels, and a checksum/config annotation should all be present.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "chart-yaml-exists",
+          "description": "Chart.yaml exists with apiVersion v2, name 'orders-api', and an appVersion"
+        },
+        {
+          "id": "values-yaml-documented",
+          "description": "values.yaml has '# --' style comments documenting at least image, resources, replicaCount, and serviceAccount"
+        },
+        {
+          "id": "helpers-tpl-present",
+          "description": "templates/_helpers.tpl defines fullname, labels, and selectorLabels named templates"
+        },
+        {
+          "id": "deployment-resource-limits",
+          "description": "Deployment template has both resources.requests and resources.limits set (CPU and memory)"
+        },
+        {
+          "id": "deployment-probes",
+          "description": "Deployment defines both livenessProbe and readinessProbe pointing at /healthz on port 8080"
+        },
+        {
+          "id": "security-context-nonroot",
+          "description": "podSecurityContext or securityContext sets runAsNonRoot: true"
+        },
+        {
+          "id": "recommended-labels",
+          "description": "Resources include app.kubernetes.io/name, instance, version, and managed-by labels"
+        },
+        {
+          "id": "pdb-included",
+          "description": "A PodDisruptionBudget template is included"
+        },
+        {
+          "id": "checksum-annotation",
+          "description": "Deployment template includes a checksum/config annotation tied to the configmap (or rationale why omitted)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "lgtm-observability-bootstrap",
+      "prompt": "We just stood up a fresh AKS cluster and need to get observability going. Set us up with Prometheus, Loki, Tempo, and Grafana so we can collect metrics, logs, and traces from our microservices. The apps emit OpenTelemetry already. Give me Helm release configs and any glue resources I need.",
+      "expected_output": "Helm values for kube-prometheus-stack (or Prometheus chart), Loki, Tempo, Grafana, and an OpenTelemetry Collector configuration. Should mention Azure Blob storage backends for Loki/Tempo, ServiceMonitor patterns for app metric collection, and Grafana datasource config wiring all three together.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "prometheus-values",
+          "description": "Includes Prometheus or kube-prometheus-stack Helm values with persistent storage and reasonable retention"
+        },
+        {
+          "id": "loki-configured",
+          "description": "Includes Loki configuration with object storage backend (Azure Blob or similar)"
+        },
+        {
+          "id": "tempo-configured",
+          "description": "Includes Tempo configuration with OTLP receivers (gRPC 4317 and/or HTTP 4318)"
+        },
+        {
+          "id": "otel-collector-pipelines",
+          "description": "OpenTelemetry Collector config defines traces, metrics, and logs pipelines exporting to Tempo, Prometheus/Mimir, and Loki"
+        },
+        {
+          "id": "grafana-datasources",
+          "description": "Grafana datasource config wires up Prometheus, Loki, and Tempo as separate datasources"
+        },
+        {
+          "id": "service-monitor-pattern",
+          "description": "Mentions or shows ServiceMonitor / PodMonitor CRDs for app metric scraping"
+        },
+        {
+          "id": "cross-signal-correlation",
+          "description": "Configuration includes trace-to-log or log-to-trace correlation (derivedFields, tracesToLogs, or exemplars)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "github-actions-gitops-pipeline",
+      "prompt": "I need a GitHub Actions pipeline that builds my container image, pushes it to ACR, and updates a Helm values file in a separate manifest repo so ArgoCD can pick it up and deploy. We use OIDC for Azure auth, no static credentials. The app repo is myorg/orders-api and the manifest repo is myorg/platform-deploy.",
+      "expected_output": "A GitHub Actions workflow that uses OIDC for Azure login, builds and pushes to ACR with a SHA-based tag, then checks out the manifest repo and updates the values file with the new tag, commits and pushes. Should also reference the ArgoCD Application that will pick up the change.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "oidc-auth",
+          "description": "Workflow uses azure/login@v2 with OIDC (client-id, tenant-id, subscription-id) — no client-secret"
+        },
+        {
+          "id": "id-token-permission",
+          "description": "Workflow has 'id-token: write' permission set for OIDC"
+        },
+        {
+          "id": "sha-based-tag",
+          "description": "Image tag is derived from git SHA, not 'latest'"
+        },
+        {
+          "id": "buildx-or-multiarch",
+          "description": "Uses docker/build-push-action or buildx (modern build tooling)"
+        },
+        {
+          "id": "manifest-repo-update",
+          "description": "Workflow checks out the separate manifest repo and updates the image tag in a values file"
+        },
+        {
+          "id": "argocd-application",
+          "description": "Includes or references an ArgoCD Application resource that watches the manifest repo with auto-sync"
+        },
+        {
+          "id": "cd-not-pushing-to-cluster",
+          "description": "CI never runs kubectl/helm against the cluster directly — GitOps pull model is preserved"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "cilium-networking",
+      "prompt": "We're standing up a self-hosted Kubernetes cluster and want Cilium as the CNI with Hubble for observability. Replace kube-proxy. Also, give me a baseline NetworkPolicy strategy: a default-deny in the 'orders' namespace, plus rules that let the orders-api accept traffic from the ingress controller and reach an internal postgres service in the 'data' namespace. DNS must keep working.",
+      "expected_output": "Cilium Helm values with kubeProxyReplacement and Hubble enabled (relay + UI + metrics). A default-deny NetworkPolicy in the 'orders' namespace, plus targeted ingress and egress NetworkPolicies. Egress must explicitly allow DNS to kube-dns. Should call out cross-namespace selectors and explain the DNS gotcha.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "cilium-helm-values",
+          "description": "Includes Cilium Helm values (kubeProxyReplacement set; values for the cilium chart)"
+        },
+        {
+          "id": "hubble-enabled",
+          "description": "Hubble configured with relay and UI enabled"
+        },
+        {
+          "id": "hubble-metrics",
+          "description": "Hubble metrics list at least includes flow/dns/http"
+        },
+        {
+          "id": "default-deny",
+          "description": "A default-deny NetworkPolicy is provided in the 'orders' namespace (empty podSelector with both Ingress and Egress policyTypes)"
+        },
+        {
+          "id": "allow-ingress-controller",
+          "description": "Ingress NetworkPolicy allows traffic from the ingress controller namespace/pods"
+        },
+        {
+          "id": "allow-egress-postgres",
+          "description": "Egress rule allows orders-api to reach postgres in the 'data' namespace on port 5432"
+        },
+        {
+          "id": "dns-egress-allowed",
+          "description": "Egress allows DNS to kube-dns on UDP/TCP port 53 — the classic NetworkPolicy gotcha"
+        }
+      ]
+    }
+  ]
+}
